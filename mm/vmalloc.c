@@ -1061,8 +1061,11 @@ __alloc_vmap_area(unsigned long size, unsigned long align,
 	else
 		nva_start_addr = ALIGN(vstart, align);
 
-	/* Check the "vend" restriction. */
-	if (nva_start_addr + size > vend)
+	/*
+	 * Check the "vend" restriction, and also that the address did not
+	 * wrap to 0 because of a big alignment request.
+	 */
+	if (nva_start_addr + size > vend || nva_start_addr < vstart)
 		return vend;
 
 	/* Classify what we have found. */
