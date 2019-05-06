@@ -3492,8 +3492,12 @@ void trace_softirqs_off(unsigned long ip)
 		debug_atomic_inc(redundant_softirqs_off);
 }
 
-static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
+static int
+mark_usage(struct task_struct *curr, struct held_lock *hlock, int check)
 {
+	if (!check)
+		goto lock_used;
+
 	/*
 	 * If non-trylock use in a hardirq or softirq context, then
 	 * mark the lock as used in these contexts:
@@ -3537,6 +3541,13 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 		}
 	}
 
+lock_used:
+	/* mark it as used: */
+	if (!mark_lock(curr, hlock, LOCK_USED))
+		return 0;
+
+	return 1;
+
 out:
 	return 1;
 }
@@ -3579,8 +3590,8 @@ int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	return 1;
 }
 
-static inline int mark_irqflags(struct task_struct *curr,
-		struct held_lock *hlock)
+static inline int
+mark_usage(struct task_struct *curr, struct held_lock *hlock, int check)
 {
 	return 1;
 }
@@ -4017,11 +4028,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		return 0;
 
 	/* Initialize the lock usage bit */
-	if (check && !mark_irqflags(curr, hlock))
-		return 0;
-
-	/* mark it as used: */
-	mark_lock(curr, hlock, LOCK_USED);
+	mark_lock(curr, hlock, check);
 
 	/*
 	 * Calculate the chain hash: it's the combined hash of all the
