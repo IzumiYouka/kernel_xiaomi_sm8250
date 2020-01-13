@@ -213,11 +213,11 @@ bool __init topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu)
 		 * frequency (by keeping the initial freq_factor value).
 		 */
 		cpu_clk = of_clk_get(cpu_node, 0);
-		if (!PTR_ERR_OR_ZERO(cpu_clk)) {
+		if (!PTR_ERR_OR_ZERO(cpu_clk))
 			per_cpu(freq_factor, cpu) =
 				clk_get_rate(cpu_clk) / 1000;
-			clk_put(cpu_clk);
-		}
+
+		clk_put(cpu_clk);
 	} else {
 		if (raw_capacity) {
 			pr_err("cpu_capacity: missing %pOF raw capacity\n",
@@ -257,7 +257,7 @@ init_cpu_capacity_callback(struct notifier_block *nb,
 	cpumask_andnot(cpus_to_visit, cpus_to_visit, policy->related_cpus);
 
 	for_each_cpu(cpu, policy->related_cpus)
-		per_cpu(freq_factor, cpu) = policy->cpuinfo.max_freq;
+		per_cpu(freq_factor, cpu) = policy->cpuinfo.max_freq / 1000;
 
 	if (cpumask_empty(cpus_to_visit)) {
 		topology_normalize_cpu_scale();
