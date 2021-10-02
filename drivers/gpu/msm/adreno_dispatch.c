@@ -2353,7 +2353,6 @@ static void retire_cmdobj(struct adreno_device *adreno_dev,
 		struct kgsl_drawobj_cmd *cmdobj)
 {
 	struct kgsl_drawobj *drawobj = DRAWOBJ(cmdobj);
-	struct adreno_context *drawctxt = ADRENO_CONTEXT(drawobj->context);
 	uint64_t start = 0, end = 0;
 
 	if (cmdobj->fault_recovery != 0) {
@@ -2377,8 +2376,7 @@ static void retire_cmdobj(struct adreno_device *adreno_dev,
 	else
 		trace_adreno_cmdbatch_retired(drawobj,
 			(int) dispatcher->inflight, start, end,
-			ADRENO_DRAWOBJ_RB(drawobj),
-			adreno_get_rptr(drawctxt->rb), cmdobj->fault_recovery);
+			ADRENO_DRAWOBJ_RB(drawobj), 0, cmdobj->fault_recovery);
 
 	kgsl_drawobj_destroy(drawobj);
 }
