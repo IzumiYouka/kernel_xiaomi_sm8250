@@ -68,23 +68,27 @@ void topology_set_thermal_pressure(const struct cpumask *cpus,
 void topology_update_thermal_pressure(const struct cpumask *cpus,
 				      unsigned long capped_freq)
 {
-	unsigned long max_capacity, capacity, max_freq;
+	unsigned long max_capacity, capacity;
+	u32 max_freq;
 	int cpu;
 
 	cpu = cpumask_first(cpus);
 	max_capacity = arch_scale_cpu_capacity(cpu);
 	max_freq = per_cpu(freq_factor, cpu);
 
-	if (!max_freq)
-		return;
+	/* Convert to MHz scale which is used in 'freq_factor' */
+	capped_freq /= 1000;
 
-	/* Boost frequencies should clear the thermal pressure */
+	/*
+	 * Handle properly the boost frequencies, which should simply clean
+	 * the thermal pressure value.
+	 */
 	if (max_freq <= capped_freq)
 		capacity = max_capacity;
 	else
 		capacity = mult_frac(max_capacity, capped_freq, max_freq);
 
-	topology_set_thermal_pressure(cpus, max_capacity - capacity);
+	arch_set_thermal_pressure(cpus, max_capacity - capacity);
 }
 EXPORT_SYMBOL_GPL(topology_update_thermal_pressure);
 
