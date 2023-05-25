@@ -394,7 +394,7 @@ compute_subtree_max_size(struct vmap_area *va)
 RB_DECLARE_CALLBACKS_MAX(static, free_vmap_area_rb_augment_cb,
 	struct vmap_area, rb_node, unsigned long, subtree_max_size, va_size)
 
-static void purge_vmap_area_lazy(void);
+static void reclaim_and_purge_vmap_areas(void);
 static BLOCKING_NOTIFIER_HEAD(vmap_notify_list);
 static unsigned long lazy_max_pages(void);
 
@@ -1145,7 +1145,7 @@ retry:
 overflow:
 	spin_unlock(&vmap_area_lock);
 	if (!purged) {
-		purge_vmap_area_lazy();
+		reclaim_and_purge_vmap_areas();
 		purged = 1;
 		goto retry;
 	}
@@ -1309,21 +1309,9 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 }
 
 /*
- * Kick off a purge of the outstanding lazy areas. Don't bother if somebody
- * is already purging.
+ * Reclaim vmap areas by purging fragmented blocks and purge_vmap_area_list.
  */
-static void try_purge_vmap_area_lazy(void)
-{
-	if (mutex_trylock(&vmap_purge_lock)) {
-		__purge_vmap_area_lazy(ULONG_MAX, 0);
-		mutex_unlock(&vmap_purge_lock);
-	}
-}
-
-/*
- * Kick off a purge of the outstanding lazy areas.
- */
-static void purge_vmap_area_lazy(void)
+static void reclaim_and_purge_vmap_areas(void)
 {
 	mutex_lock(&vmap_purge_lock);
 	purge_fragmented_blocks_allcpus();
@@ -1403,6 +1391,12 @@ static struct vmap_area *find_vmap_area(unsigned long addr)
 			VMALLOC_PAGES / roundup_pow_of_two(NR_CPUS) / 16))
 
 #define VMAP_BLOCK_SIZE		(VMAP_BBMAP_BITS * PAGE_SIZE)
+
+/*
+ * Purge threshold to prevent overeager purging of fragmented blocks for
+ * regular operations: Purge if vb->free is less than 1/4 of the capacity.
+ */
+#define VMAP_PURGE_THRESHOLD	(VMAP_BBMAP_BITS / 4)
 
 struct vmap_block_queue {
 	spinlock_t lock;
@@ -1580,10 +1574,15 @@ static void free_vmap_block(struct vmap_block *vb)
 }
 
 static bool purge_fragmented_block(struct vmap_block *vb,
-		struct vmap_block_queue *vbq, struct list_head *purge_list)
+		struct vmap_block_queue *vbq, struct list_head *purge_list,
+		bool force_purge)
 {
 	if (vb->free + vb->dirty != VMAP_BBMAP_BITS ||
 	    vb->dirty == VMAP_BBMAP_BITS)
+		return false;
+
+	/* Don't overeagerly purge usable blocks unless requested */
+	if (!(force_purge || vb->free < VMAP_PURGE_THRESHOLD))
 		return false;
 
 	/* prevent further allocs after releasing lock */
@@ -1625,7 +1624,7 @@ static void purge_fragmented_blocks(int cpu)
 			continue;
 
 		spin_lock(&vb->lock);
-		purge_fragmented_block(vb, vbq, &purge);
+		purge_fragmented_block(vb, vbq, &purge, true);
 		spin_unlock(&vb->lock);
 	}
 	rcu_read_unlock();
@@ -1760,7 +1759,7 @@ static void _vm_unmap_aliases(unsigned long start, unsigned long end, int flush)
 			 * not purgeable, check whether there is dirty
 			 * space to be flushed.
 			 */
-			if (!purge_fragmented_block(vb, vbq, &purge_list) &&
+			if (!purge_fragmented_block(vb, vbq, &purge_list, false) &&
 			    vb->dirty_max && vb->dirty != VMAP_BBMAP_BITS) {
 				unsigned long va_start = vb->va->va_start;
 				unsigned long s, e;
@@ -3483,7 +3482,7 @@ recovery:
 overflow:
 	spin_unlock(&vmap_area_lock);
 	if (!purged) {
-		purge_vmap_area_lazy();
+		reclaim_and_purge_vmap_areas();
 		purged = true;
 
 		/* Before "retry", check if we recover. */
