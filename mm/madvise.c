@@ -1328,6 +1328,15 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	}
 
 	/*
+	 * We need only perform this check if we are attempting to manipulate a
+	 * remote process's address space.
+	 */
+	if (mm != current->mm && !process_madvise_remote_valid(behavior)) {
+		ret = -EINVAL;
+		goto release_mm;
+	}
+
+	/*
 	 * Require CAP_SYS_NICE for influencing process performance. Note that
 	 * only non-destructive hints are currently supported for remote
 	 * processes.
