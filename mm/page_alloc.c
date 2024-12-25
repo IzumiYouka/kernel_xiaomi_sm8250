@@ -7641,6 +7641,8 @@ early_param("movablecore", cmdline_parse_movablecore);
 
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
+static void setup_per_zone_lowmem_reserve(void);
+
 void adjust_managed_page_count(struct page *page, long count)
 {
 	spin_lock(&managed_page_count_lock);
@@ -7651,6 +7653,8 @@ void adjust_managed_page_count(struct page *page, long count)
 		totalhigh_pages_add(count);
 #endif
 	spin_unlock(&managed_page_count_lock);
+
+	setup_per_zone_lowmem_reserve();
 }
 EXPORT_SYMBOL(adjust_managed_page_count);
 
