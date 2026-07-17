@@ -4278,6 +4278,7 @@ int kswapd_run(int nid)
 	}
 	kswapd_threads_current = nr_threads;
 
+	spin_lock_init(&pgdat->kcompress_fifo_lock);
 	ret = kfifo_alloc(&pgdat->kcompress_fifo,
 			KCOMPRESS_FIFO_SIZE * sizeof(struct page *),
 			GFP_KERNEL);
