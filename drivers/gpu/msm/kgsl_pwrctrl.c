@@ -556,7 +556,6 @@ unsigned int kgsl_pwrctrl_adjust_pwrlevel(struct kgsl_device *device,
 {
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 #ifdef CONFIG_DEBUG_KERNEL
-	unsigned int old_level = pwr->active_pwrlevel;
 #endif
 
 	/* If a pwr constraint is expired, remove it */
