@@ -18,11 +18,6 @@
 #include <linux/sched/sysctl.h>
 #include <linux/cpuset.h>
 
-bool topology_scale_freq_invariant(void)
-{
-	return cpufreq_supports_freq_invariance();
-}
-
 DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
 static DEFINE_PER_CPU(u32, freq_factor) = 1;
 
