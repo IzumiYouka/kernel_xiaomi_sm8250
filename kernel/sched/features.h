@@ -100,11 +100,15 @@ SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
  * when preemption is disabled for long periods of time. Have
  * it only default enabled for PREEMPT_RT.
  */
-# ifdef CONFIG_PREEMPT_RT
+#ifdef CONFIG_PREEMPT_RT
 SCHED_FEAT(RT_PUSH_IPI, true)
-# else
+#else
+/*
+ * RT push IPI is only beneficial on PREEMPT_RT; on !RT it adds an IPI
+ * for every priority drop and can contribute to latency spikes.
+ */
 SCHED_FEAT(RT_PUSH_IPI, false)
-# endif
+#endif
 #endif
 
 SCHED_FEAT(RT_RUNTIME_SHARE, true)
