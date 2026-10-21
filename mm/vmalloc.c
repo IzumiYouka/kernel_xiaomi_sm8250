@@ -1335,7 +1335,7 @@ static void free_vmap_area_noflush(struct vmap_area *va)
 	llist_add(&va->purge_list, &vmap_purge_list);
 
 	if (unlikely(nr_lazy > lazy_max_pages()))
-		try_purge_vmap_area_lazy();
+		reclaim_and_purge_vmap_areas();
 }
 
 /*
