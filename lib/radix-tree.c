@@ -1121,6 +1121,18 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 EXPORT_SYMBOL(radix_tree_tag_clear);
 
 /**
+ * radix_tree_iter_tag_set - set a tag on the current iterator entry
+ * @root:	radix tree root
+ * @iter:	iterator state
+ * @tag:	tag to set
+ */
+void radix_tree_iter_tag_set(struct radix_tree_root *root,
+			const struct radix_tree_iter *iter, unsigned int tag)
+{
+	node_tag_set(root, iter->node, tag, iter_offset(iter));
+}
+
+/**
   * radix_tree_iter_tag_clear - clear a tag on the current iterator entry
   * @root: radix tree root
   * @iter: iterator state
