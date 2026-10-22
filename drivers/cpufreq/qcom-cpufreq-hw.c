@@ -76,7 +76,6 @@ struct cpufreq_qcom {
 	unsigned long xo_rate;
 	unsigned long cpu_hw_rate;
 	unsigned long dcvsh_freq_limit;
-	unsigned long last_lmh_freq;
 	struct delayed_work freq_poll_work;
 	struct mutex dcvsh_lock;
 	struct device_attribute freq_limit_attr;
@@ -172,12 +171,8 @@ static unsigned long limits_mitigation_notify(struct cpufreq_qcom *c,
 	 * Route the LMh-reported throttled frequency through FIE's thermal
 	 * pressure aggregation. FIE combines this with its own measured HW
 	 * throttle detection for a more accurate thermal pressure report.
-	 * Only re-send the cpufreq thermal source when the cap changes.
 	 */
-	if (c->last_lmh_freq != freq) {
-		c->last_lmh_freq = freq;
-		fie_cpufreq_pressure(cpu, freq);
-	}
+	fie_cpufreq_pressure(cpu, freq);
 
 	trace_dcvsh_freq(cpu, freq);
 	c->dcvsh_freq_limit = freq;
