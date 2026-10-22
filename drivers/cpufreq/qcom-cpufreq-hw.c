@@ -135,6 +135,7 @@ static const u16 cpufreq_qcom_epss_std_offsets[REG_ARRAY_SIZE] = {
 
 static struct cpufreq_counter qcom_cpufreq_counter[NR_CPUS];
 static struct cpufreq_qcom *qcom_freq_domain_map[NR_CPUS];
+static struct thermal_cooling_device *cdev[NR_CPUS];
 
 static unsigned int qcom_cpufreq_hw_get(unsigned int cpu);
 
@@ -456,7 +457,8 @@ static struct freq_attr *qcom_cpufreq_hw_attr[] = {
 
 static int qcom_cpufreq_exit(struct cpufreq_policy *policy)
 {
-	struct cpufreq_qcom *c = qcom_freq_domain_map[policy->cpu];
+	unsigned int cpu = policy->cpu;
+	struct cpufreq_qcom *c = qcom_freq_domain_map[cpu];
 
 	if (!c)
 		return 0;
@@ -470,12 +472,27 @@ static int qcom_cpufreq_exit(struct cpufreq_policy *policy)
 	c->exited = true;
 	mutex_unlock(&c->dcvsh_lock);
 
+	/*
+	 * Full teardown: the policy is about to be freed, so the cooling
+	 * device registered in ->ready() must not outlive it, and any LMh
+	 * throttle still in effect must be dropped before the domain goes
+	 * away for good.
+	 */
+	if (cdev[cpu]) {
+		cpufreq_cooling_unregister(cdev[cpu]);
+		cdev[cpu] = NULL;
+	}
+
+	if (c->dcvsh_irq > 0) {
+		cancel_delayed_work_sync(&c->freq_poll_work);
+		fie_cpufreq_pressure(cpumask_first(policy->related_cpus), UINT_MAX);
+	}
+
 	return 0;
 }
 
 static void qcom_cpufreq_ready(struct cpufreq_policy *policy)
 {
-	static struct thermal_cooling_device *cdev[NR_CPUS];
 	struct device_node *np;
 	unsigned int cpu = policy->cpu;
 
